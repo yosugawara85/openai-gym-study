@@ -1,0 +1,38 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-16.04"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui = true
+    vb.memory = "2048"
+    vb.customize [
+      "modifyvm", :id,
+      "--vram", "256",
+      "--clipboard", "bidirectional",
+      "--draganddrop", "bidirectional"
+    ]
+  end
+
+  # config.vm.hostname = "openai-gym-vagrant"
+  config.vm.network :private_network, ip: "192.168.33.10"
+
+  config.vm.network :forwarded_port, host: 8888, guest: 8888
+
+  config.vm.synced_folder "data", "/vagrant_data"
+
+  config.vm.provision "docker"
+  config.vm.provision "shell", inline: "systemctl enable docker"
+  # config.vm.provision "shell", inline: "service docker start", run: "always"
+
+  config.vm.provision "file", source: "provision/files/Dockerfile", destination: "Dockerfile"
+  config.vm.provision "file", source: "provision/files/requirements_1.txt", destination: "requirements_1.txt"
+  config.vm.provision "file", source: "provision/files/requirements_2.txt", destination: "requirements_2.txt"
+  config.vm.provision "shell", inline: "docker build -t openai-gym-image /vagrant_data/"
+  config.vm.provision "shell", inline: "docker run -d -p 8888:8888 --name openai-gym-container openai-gym-image"
+  config.vm.provision "shell", inline: "docker container start openai-gym-container", run: "always"
+
+  # config.vm.provision "shell", path: "provision/scripts/provision-root.sh"
+  # config.vm.provision "shell", path: "provision/scripts/provision.sh", privileged: false
+end
